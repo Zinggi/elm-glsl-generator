@@ -4,48 +4,42 @@ import Browser
 import GLSL exposing (..)
 import Html exposing (Html)
 import Html.Attributes as Attr
+import Html.Events as Events
 import Physical exposing (physical)
 
 
 type alias Model =
-    ()
+    { withTextures : Bool }
 
 
 init : Model
 init =
-    ()
+    { withTextures = False }
 
 
 type Msg
-    = Msg1
-    | Msg2
+    = ToggleWithTextures
 
 
 update : Msg -> Model -> Model
 update msg model =
-    model
+    case msg of
+        ToggleWithTextures ->
+            { model | withTextures = not model.withTextures }
 
 
 view : Model -> Html Msg
 view model =
-    Html.div [ Attr.style "white-space" "pre" ]
-        [ Html.text (genCode (physical True)) ]
-
-
-simple =
-    let
-        intensity =
-            uniform "float" "intensity"
-
-        intensitySquared =
-            intensity >> s " * " >> intensity
-
-        color =
-            uniform "vec3" "color"
-    in
-    start
-        |> (s "vec3 a = vec3(gammaCorrect(1.3), " >> intensitySquared >> s ", 1.0);")
-        |> (s "gl_FragColor = vec4(" >> color >> s " * a, 1.0);")
+    Html.div []
+        [ Html.div []
+            [ Html.text "With textures: "
+            , Html.input [ Attr.type_ "checkbox", Events.onInput (\_ -> ToggleWithTextures) ]
+                []
+            ]
+        , Html.hr [] []
+        , Html.div [ Attr.style "white-space" "pre" ]
+            [ Html.text (genCode (physical model.withTextures)) ]
+        ]
 
 
 main : Program () Model Msg
