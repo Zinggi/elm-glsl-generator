@@ -1,6 +1,8 @@
 module GLSL exposing
     ( Fragment
     , define
+    , defineUniform
+    , defineVarying
     , generateElm
     , generateGLSL
     , s
@@ -52,6 +54,21 @@ variable type_ vName (Fragment state) =
         }
 
 
+defineUniform : String -> String -> Fragment -> Fragment
+defineUniform type_ =
+    defineVariable (Uniform type_)
+
+
+defineVarying : String -> String -> Fragment -> Fragment
+defineVarying type_ =
+    defineVariable (Varying type_)
+
+
+defineVariable : InputType -> String -> Fragment -> Fragment
+defineVariable type_ vName (Fragment state) =
+    Fragment { state | variables = Dict.insert vName type_ state.variables }
+
+
 define : String -> Fragment -> Fragment
 define code (Fragment state) =
     Fragment { state | definitions = code :: state.definitions }
@@ -80,13 +97,16 @@ generateElm name (Fragment state) =
             if List.isEmpty types then
                 "{}"
 
+            else if rec == "" then
+                "{ " ++ String.join "\n, " types ++ "\n}"
+
             else
                 "{ " ++ rec ++ "\n    | " ++ String.join "\n    , " types ++ "\n}"
 
         typeAnnotation =
             indent 8 (toAnnotation "uniforms" uniforms)
                 ++ "\n"
-                ++ indent 8 (toAnnotation "varyings" varyings)
+                ++ indent 8 (toAnnotation "" varyings)
     in
     (name ++ " :\n    WebGL.Shader {}\n" ++ typeAnnotation ++ "\n")
         ++ (name ++ " =\n")

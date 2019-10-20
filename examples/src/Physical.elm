@@ -42,18 +42,15 @@ physical isTexture =
                 uniform "float" "metallic"
     in
     start
-        |> define """
-uniform mat4 sceneProperties;
-uniform mat4 ambientLighting;
-uniform mat4 viewMatrix;
-uniform mat4 lights12;
-uniform mat4 lights34;
-uniform mat4 lights56;
-uniform mat4 lights78;
-
-varying vec3 interpolatedPosition;
-varying vec3 interpolatedNormal;
-"""
+        |> defineUniform "mat4" "sceneProperties"
+        |> defineUniform "mat4" "ambientLighting"
+        |> defineUniform "mat4" "viewMatrix"
+        |> defineUniform "mat4" "lights12"
+        |> defineUniform "mat4" "lights34"
+        |> defineUniform "mat4" "lights56"
+        |> defineUniform "mat4" "lights78"
+        |> defineVarying "vec3" "interpolatedPosition"
+        |> defineVarying "vec3" "interpolatedNormal"
         |> define positiveDotProduct
         |> define gammaCorrect
         |> define toSrgb
