@@ -98,7 +98,7 @@ s : String -> Fragment -> Fragment
 s code (Fragment state) =
     let
         c =
-            if String.endsWith ";" code || String.endsWith "{" code then
+            if List.any (\x -> String.endsWith x code) [ ";", "{", "}" ] then
                 code ++ "\n"
 
             else
