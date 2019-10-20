@@ -63,10 +63,32 @@ generateElm name (Fragment state) =
         glsl =
             generateGLSL (Fragment state)
 
+        ( uniforms, varyings ) =
+            Dict.foldl
+                (\vName v ( uAcc, vAcc ) ->
+                    case v of
+                        Uniform t ->
+                            ( (vName ++ ": " ++ toElmType t) :: uAcc, vAcc )
+
+                        Varying t ->
+                            ( uAcc, (vName ++ ": " ++ toElmType t) :: vAcc )
+                )
+                ( [], [] )
+                state.variables
+
+        toAnnotation rec types =
+            if List.isEmpty types then
+                "{}"
+
+            else
+                "{ " ++ rec ++ "\n    | " ++ String.join "\n    , " types ++ "\n}"
+
         typeAnnotation =
-            "TODO"
+            indent 8 (toAnnotation "uniforms" uniforms)
+                ++ "\n"
+                ++ indent 8 (toAnnotation "varyings" varyings)
     in
-    (name ++ " : " ++ typeAnnotation ++ "\n")
+    (name ++ " :\n    WebGL.Shader {}\n" ++ typeAnnotation ++ "\n")
         ++ (name ++ " =\n")
         ++ "    [glsl|\n"
         ++ glsl
@@ -131,6 +153,40 @@ start =
 
 
 --- Internal
+
+
+toElmType : String -> String
+toElmType glslType =
+    case glslType of
+        "int" ->
+            "Int"
+
+        "float" ->
+            "Float"
+
+        "vec2" ->
+            "Vec2"
+
+        "vec3" ->
+            "Vec3"
+
+        "vec4" ->
+            "Vec4"
+
+        "mat2" ->
+            "Mat2"
+
+        "mat3" ->
+            "Mat3"
+
+        "mat4" ->
+            "Mat4"
+
+        "sampler2D" ->
+            "Texture"
+
+        other ->
+            other
 
 
 indent n str =
