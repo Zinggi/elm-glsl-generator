@@ -10,13 +10,36 @@ physical isTexture =
                 s "texture2D(" >> uniform "sampler2D" "color" >> s ", uv.yx).rgb"
 
             else
-                uniform "float" "color"
+                uniform "vec3" "color"
+
+        uv =
+            if isTexture then
+                \x ->
+                    x
+                        |> s "// TODO: if we had the uv map in the mesh, this would be all it takes\n"
+                        |> s "// vec2 uv = interpolatedUV;\n"
+                        |> s "//\n"
+                        |> s "// but for now, lets calculate uv maps via this formula for a sphere:\n"
+                        |> s "// https://en.wikipedia.org/wiki/UV_mapping#Finding_UV_on_a_sphere\n"
+                        |> (s "vec3 iUV = normalize(" >> varying "vec3" "interpolatedUV" >> s ");")
+                        |> s "vec2 uv = vec2((atan(iUV.z, iUV.x) / 3.1415926 + 1.0) * 0.5, 0.5 - (asin(iUV.y) / 3.1415926));"
+
+            else
+                s ""
 
         roughness =
-            uniform "sampler2D" "roughness"
+            if isTexture then
+                s "float r = texture2D(" >> uniform "sampler2D" "roughness" >> s ", uv).r;"
+
+            else
+                uniform "float" "roughness"
 
         metallic =
-            uniform "sampler2D" "metallic"
+            if isTexture then
+                s "texture2D(" >> uniform "sampler2D" "metallic" >> s ", uv).r"
+
+            else
+                uniform "float" "metallic"
     in
     start
         |> define """
@@ -30,7 +53,6 @@ uniform mat4 lights78;
 
 varying vec3 interpolatedPosition;
 varying vec3 interpolatedNormal;
-varying vec3 interpolatedUV;
 """
         |> define positiveDotProduct
         |> define gammaCorrect
@@ -50,44 +72,36 @@ varying vec3 interpolatedUV;
         |> define specularLightDirection
         |> define ambientColor
         |> define litColor
-        |> s """vec3 normalDirection = normalize(interpolatedNormal);
-float projectionType = sceneProperties[1][3];
-vec3 directionToCamera = vec3(0.0, 0.0, 0.0);
-if (projectionType == 0.0) {
-    vec3 cameraPoint = sceneProperties[1].xyz;
-    directionToCamera = normalize(cameraPoint - interpolatedPosition);
-} else {
-    directionToCamera = sceneProperties[1].xyz;
-}
-float dotNV = positiveDotProduct(normalDirection, directionToCamera);
-// TODO: if we had the uv map in the mesh, this would be all it takes
-// vec2 uv = interpolatedUV;
-//
-// but for now, lets calculate uv maps via this formula for a sphere:
-// https://en.wikipedia.org/wiki/UV_mapping#Finding_UV_on_a_sphere 
-vec3 iUV = normalize(interpolatedUV);
-vec2 uv = vec2((atan(iUV.z, iUV.x) / 3.1415926 + 1.0) * 0.5,
-                0.5 - (asin(iUV.y) / 3.1415926));
-float m = texture2D(metallic, uv).r;
-float nonmetallic = 1.0 - m;"""
+        |> s "vec3 normalDirection = normalize(interpolatedNormal);"
+        |> s "float projectionType = sceneProperties[1][3];"
+        |> s "vec3 directionToCamera = vec3(0.0, 0.0, 0.0);"
+        |> s "if (projectionType == 0.0) {"
+        |> s "    vec3 cameraPoint = sceneProperties[1].xyz;"
+        |> s "    directionToCamera = normalize(cameraPoint - interpolatedPosition);"
+        |> s "} else {"
+        |> s "    directionToCamera = sceneProperties[1].xyz;"
+        |> s "}"
+        |> s "float dotNV = positiveDotProduct(normalDirection, directionToCamera);"
+        |> uv
+        |> (s "float m = " >> metallic >> s ";")
+        |> s "float nonmetallic = 1.0 - m;"
         |> (s "vec3 diffColor = " >> color >> s ";")
-        |> s """vec3 diffuseBaseColor = nonmetallic * 0.96 * diffColor;
-vec3 specularBaseColor = nonmetallic * 0.04 * vec3(1.0, 1.0, 1.0) + m * diffColor;
-vec3 linearColor = vec3(0.0, 0.0, 0.0);
-float r = texture2D(roughness, uv).r;
-float alpha = r * r;
-float alphaSquared = alpha * alpha;
-vec3 color0 = ambientColor(normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alpha, alphaSquared);
-vec3 color1 = litColor(lights12[0], lights12[1], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);
-vec3 color2 = litColor(lights12[2], lights12[3], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);
-vec3 color3 = litColor(lights34[0], lights34[1], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);
-vec3 color4 = litColor(lights34[2], lights34[3], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);
-vec3 color5 = litColor(lights56[0], lights56[1], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);
-vec3 color6 = litColor(lights56[2], lights56[3], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);
-vec3 color7 = litColor(lights78[0], lights78[1], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);
-vec3 color8 = litColor(lights78[2], lights78[3], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);
-gl_FragColor = toSrgb(color0 + color1 + color2 + color3 + color4 + color5 + color6 + color7 + color8);
-"""
+        |> s "vec3 diffuseBaseColor = nonmetallic * 0.96 * diffColor;"
+        |> s "vec3 specularBaseColor = nonmetallic * 0.04 * vec3(1.0, 1.0, 1.0) + m * diffColor;"
+        |> s "vec3 linearColor = vec3(0.0, 0.0, 0.0);"
+        |> roughness
+        |> s "float alpha = r * r;"
+        |> s "float alphaSquared = alpha * alpha;"
+        |> s "vec3 color0 = ambientColor(normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alpha, alphaSquared);"
+        |> s "vec3 color1 = litColor(lights12[0], lights12[1], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);"
+        |> s "vec3 color2 = litColor(lights12[2], lights12[3], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);"
+        |> s "vec3 color3 = litColor(lights34[0], lights34[1], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);"
+        |> s "vec3 color4 = litColor(lights34[2], lights34[3], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);"
+        |> s "vec3 color5 = litColor(lights56[0], lights56[1], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);"
+        |> s "vec3 color6 = litColor(lights56[2], lights56[3], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);"
+        |> s "vec3 color7 = litColor(lights78[0], lights78[1], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);"
+        |> s "vec3 color8 = litColor(lights78[2], lights78[3], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);"
+        |> s "gl_FragColor = toSrgb(color0 + color1 + color2 + color3 + color4 + color5 + color6 + color7 + color8);"
 
 
 positiveDotProduct =
