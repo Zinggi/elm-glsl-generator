@@ -1,7 +1,8 @@
 module GLSL exposing
     ( Fragment
     , define
-    , genCode
+    , generateElm
+    , generateGLSL
     , s
     , start
     , uniform
@@ -56,8 +57,24 @@ define code (Fragment state) =
     Fragment { state | definitions = code :: state.definitions }
 
 
-genCode : Fragment -> String
-genCode (Fragment state) =
+generateElm : String -> Fragment -> String
+generateElm name (Fragment state) =
+    let
+        glsl =
+            generateGLSL (Fragment state)
+
+        typeAnnotation =
+            "TODO"
+    in
+    (name ++ " : " ++ typeAnnotation ++ "\n")
+        ++ (name ++ " =\n")
+        ++ "    [glsl|\n"
+        ++ glsl
+        ++ "|]\n"
+
+
+generateGLSL : Fragment -> String
+generateGLSL (Fragment state) =
     let
         variables =
             Dict.foldl
