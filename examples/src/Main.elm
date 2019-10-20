@@ -48,7 +48,7 @@ view model =
                 []
             ]
         , Html.hr [] []
-        , Html.div [ Attr.style "white-space" "pre" ]
+        , Html.pre []
             [ Html.text
                 (if model.genElm then
                     generateElm "physicalFragment" (physical model.withTextures)
