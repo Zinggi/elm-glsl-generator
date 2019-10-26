@@ -9,4 +9,4 @@ It could for instance be used by a game engine to generate multiple variations o
 
 ## Examples
 
-A complete example can be found here: [Physical.elm](./examples/Physical.elm).
+A complete example can be found here: [Physical.elm](https://github.com/Zinggi/elm-glsl-generator/blob/master/examples/src/Physical.elm).
