@@ -1,80 +1,125 @@
 module GLSL exposing
-    ( Fragment
-    , define
-    , defineUniform
-    , defineVarying
-    , generateElm
-    , generateGLSL
-    , s
-    , start
-    , uniform
-    , varying
+    ( Generator, emptyFragmentShader
+    , GLSLType, defineUniform, defineVarying, define
+    , s, uniform, varying
+    , generateGLSL, generateElm
     )
+
+{-| This package helps to combine GLSL code snippets.
+
+This package is build around functions of type `Generator -> Generator`.
+They are all meant to be used in a pipeline (`|>`) or by composing them (`>>`).
+
+@docs Generator, emptyFragmentShader
+
+Shaders usually start by defining variables and functions
+
+    emptyFragmentShader
+        |> defineUniform "vec3" "color"
+        |> define glslCodeDefiningAFunction
+
+@docs GLSLType, defineUniform, defineVarying, define
+
+Then you define the code for main using code snippets and possibly some more variables.
+Variables used here (with `uniform` and `varying`) will be automatically declared in the genrated code.
+
+    code
+        |> (s "vec4 c = vec4(color * " >> uniform "float" "colorScale" >> ", 1.0);")
+        |> s "gl_FragColor = c;"
+
+@docs s, uniform, varying
+
+Then you take a finished `Generator` and generate code from it:
+
+@docs generateGLSL, generateElm
+
+-}
 
 import Dict exposing (Dict)
 
 
-type Fragment
+{-| A type that describes a fragment shader
+-}
+type Generator
     = Fragment
         { variables : Dict String InputType
-        , code : List Frag
+        , code : List String
         , definitions : List String
         }
 
 
-
--- Internal
-
-
-type Frag
-    = Code String
-
-
-type InputType
-    = Uniform String
-    | Varying String
+{-| This starts a fragment shader pipeline
+-}
+emptyFragmentShader : Generator
+emptyFragmentShader =
+    Fragment { variables = Dict.empty, code = [], definitions = [] }
 
 
-uniform : String -> String -> Fragment -> Fragment
-uniform type_ =
-    variable (Uniform type_)
+
+--
 
 
-varying : String -> String -> Fragment -> Fragment
-varying type_ =
-    variable (Varying type_)
-
-
-variable : InputType -> String -> Fragment -> Fragment
-variable type_ vName (Fragment state) =
-    Fragment
-        { state
-            | variables = Dict.insert vName type_ state.variables
-            , code = Code vName :: state.code
-        }
-
-
-defineUniform : String -> String -> Fragment -> Fragment
-defineUniform type_ =
-    defineVariable (Uniform type_)
-
-
-defineVarying : String -> String -> Fragment -> Fragment
-defineVarying type_ =
-    defineVariable (Varying type_)
-
-
-defineVariable : InputType -> String -> Fragment -> Fragment
-defineVariable type_ vName (Fragment state) =
-    Fragment { state | variables = Dict.insert vName type_ state.variables }
-
-
-define : String -> Fragment -> Fragment
+{-| -}
+define : String -> Generator -> Generator
 define code (Fragment state) =
     Fragment { state | definitions = code :: state.definitions }
 
 
-generateElm : String -> Fragment -> String
+{-| -}
+type alias GLSLType =
+    String
+
+
+{-| -}
+defineUniform : GLSLType -> String -> Generator -> Generator
+defineUniform type_ =
+    defineVariable (Uniform type_)
+
+
+{-| -}
+defineVarying : GLSLType -> String -> Generator -> Generator
+defineVarying type_ =
+    defineVariable (Varying type_)
+
+
+
+--
+
+
+{-| Adds some lines of code to main
+-}
+s : String -> Generator -> Generator
+s code (Fragment state) =
+    let
+        c =
+            if List.any (\x -> String.endsWith x code) [ ";", "{", "}" ] then
+                code ++ "\n"
+
+            else
+                code
+    in
+    Fragment { state | code = c :: state.code }
+
+
+{-| -}
+uniform : GLSLType -> String -> Generator -> Generator
+uniform type_ =
+    variable (Uniform type_)
+
+
+{-| -}
+varying : GLSLType -> String -> Generator -> Generator
+varying type_ =
+    variable (Varying type_)
+
+
+
+--
+
+
+{-| Transform a generator into the finished elm code
+-}
+generateElm : String -> Generator -> String
 generateElm name (Fragment state) =
     let
         glsl =
@@ -115,7 +160,9 @@ generateElm name (Fragment state) =
         ++ "|]\n"
 
 
-generateGLSL : Fragment -> String
+{-| Transform a generator into the finished GLSL code
+-}
+generateGLSL : Generator -> String
 generateGLSL (Fragment state) =
     let
         variables =
@@ -137,9 +184,7 @@ generateGLSL (Fragment state) =
         main =
             List.foldl
                 (\frag acc ->
-                    case frag of
-                        Code t ->
-                            t ++ acc
+                    frag ++ acc
                 )
                 ""
                 state.code
@@ -153,26 +198,27 @@ generateGLSL (Fragment state) =
         ++ "\n}\n"
 
 
-s : String -> Fragment -> Fragment
-s code (Fragment state) =
-    let
-        c =
-            if List.any (\x -> String.endsWith x code) [ ";", "{", "}" ] then
-                code ++ "\n"
 
-            else
-                code
-    in
-    Fragment { state | code = Code c :: state.code }
+-- Internal
 
 
-start : Fragment
-start =
-    Fragment { variables = Dict.empty, code = [], definitions = [] }
+type InputType
+    = Uniform String
+    | Varying String
 
 
+variable : InputType -> String -> Generator -> Generator
+variable type_ vName (Fragment state) =
+    Fragment
+        { state
+            | variables = Dict.insert vName type_ state.variables
+            , code = vName :: state.code
+        }
 
---- Internal
+
+defineVariable : InputType -> String -> Generator -> Generator
+defineVariable type_ vName (Fragment state) =
+    Fragment { state | variables = Dict.insert vName type_ state.variables }
 
 
 toElmType : String -> String
@@ -209,6 +255,7 @@ toElmType glslType =
             other
 
 
+indent : Int -> String -> String
 indent n str =
     String.lines str
         |> List.map ((++) (String.repeat n " "))

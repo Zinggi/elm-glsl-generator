@@ -41,7 +41,7 @@ physical isTexture =
             else
                 uniform "float" "metallic"
     in
-    start
+    emptyFragmentShader
         |> defineUniform "mat4" "sceneProperties"
         |> defineUniform "mat4" "ambientLighting"
         |> defineUniform "mat4" "viewMatrix"
