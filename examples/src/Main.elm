@@ -5,7 +5,7 @@ import GLSL exposing (..)
 import Html exposing (Html)
 import Html.Attributes as Attr
 import Html.Events as Events
-import Physical exposing (physical)
+import Physical exposing (physicalFrag, smoothVertex)
 
 
 type alias Model =
@@ -48,15 +48,23 @@ view model =
                 []
             ]
         , Html.hr [] []
-        , Html.pre []
-            [ Html.text
-                (if model.genElm then
-                    generateElm "physicalFragment" (physical model.withTextures)
+        , Html.h2 [] [ Html.text "Vertex" ]
+        , showCode "smoothVertex" smoothVertex model
+        , Html.hr [] []
+        , Html.h2 [] [ Html.text "Fragment" ]
+        , showCode "physicalFragment" physicalFrag model
+        ]
 
-                 else
-                    generateGLSL (physical model.withTextures)
-                )
-            ]
+
+showCode shaderName code { genElm, withTextures } =
+    Html.pre []
+        [ Html.text
+            (if genElm then
+                generateElm shaderName (code withTextures)
+
+             else
+                generateGLSL (code withTextures)
+            )
         ]
 
 

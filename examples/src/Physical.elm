@@ -1,4 +1,4 @@
-module Physical exposing (physical)
+module Physical exposing (physicalFrag, smoothVertex)
 
 import GLSL exposing (..)
 
@@ -8,7 +8,37 @@ import GLSL exposing (..)
 -- https://github.com/ianmackenzie/elm-3d-scene/blob/master/src/Scene3d/Shader.elm
 
 
-physical isTexture =
+smoothVertex isTexture =
+    let
+        interpolatedUV =
+            if isTexture then
+                \c ->
+                    c
+                        |> s "// TODO: use uv\n"
+                        |> (varying "vec3" "interpolatedUV" >> s " = position;")
+
+            else
+                s ""
+    in
+    emptyVertexShader
+        |> defineAttribute "vec3" "position"
+        |> defineAttribute "vec3" "normal"
+        |> defineUniform "float" "modelScale"
+        |> defineUniform "mat4" "modelMatrix"
+        |> defineUniform "mat4" "viewMatrix"
+        |> defineUniform "mat4" "sceneProperties"
+        |> defineVarying "vec3" "interpolatedPosition"
+        |> defineVarying "vec3" "interpolatedNormal"
+        |> define project
+        |> s "vec4 scaledPosition = vec4(modelScale * position, 1.0);"
+        |> s "vec4 transformedPosition = modelMatrix * scaledPosition;"
+        |> s "gl_Position = project(viewMatrix * transformedPosition);"
+        |> s "interpolatedPosition = transformedPosition.xyz;"
+        |> s "interpolatedNormal = (modelMatrix * vec4(normal, 0.0)).xyz;"
+        |> interpolatedUV
+
+
+physicalFrag isTexture =
     let
         color =
             if isTexture then
@@ -104,6 +134,23 @@ physical isTexture =
         |> s "vec3 color7 = litColor(lights78[0], lights78[1], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);"
         |> s "vec3 color8 = litColor(lights78[2], lights78[3], normalDirection, directionToCamera, dotNV, diffuseBaseColor, specularBaseColor, alphaSquared);"
         |> s "gl_FragColor = toSrgb(color0 + color1 + color2 + color3 + color4 + color5 + color6 + color7 + color8);"
+
+
+project =
+    """
+vec4 project(vec4 position) {
+    float n = sceneProperties[0][0];
+    float a = sceneProperties[0][1];
+    float kc = sceneProperties[0][2];
+    float kz = sceneProperties[0][3];
+    return vec4(
+        (kc + kz * position.z) * (position.x / a),
+        (kc + kz * position.z) * position.y,
+        (-position.z - 2.0 * n),
+        -position.z
+    );
+}
+"""
 
 
 positiveDotProduct =
