@@ -3,6 +3,11 @@ module Physical exposing (physical)
 import GLSL exposing (..)
 
 
+
+-- The code here has been taken from ianmackenzie/elm-3d-scene:
+-- https://github.com/ianmackenzie/elm-3d-scene/blob/master/src/Scene3d/Shader.elm
+
+
 physical isTexture =
     let
         color =
@@ -41,7 +46,7 @@ physical isTexture =
             else
                 uniform "float" "metallic"
     in
-    start
+    emptyFragmentShader
         |> defineUniform "mat4" "sceneProperties"
         |> defineUniform "mat4" "ambientLighting"
         |> defineUniform "mat4" "viewMatrix"

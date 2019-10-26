@@ -1,6 +1,6 @@
 {
   "type": "package",
-  "name": "GLSL combinator",
+  "name": "Zinggi/glsl-combinator",
   "summary": "Generate GLSL shader code",
   "license": "BSD-3-Clause",
   "version": "1.0.0",
